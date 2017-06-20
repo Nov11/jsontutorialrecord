@@ -1,3 +1,9 @@
 */build/
 */Win32/
 */*.dir/
+*/Debug
+*/*.vcxproj*
+*/*.sln
+*.cmake
+*/.vs
+CMake*
