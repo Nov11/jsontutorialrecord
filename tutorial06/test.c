@@ -172,7 +172,7 @@ static void test_parse_object() {
     size_t i;
 
     lept_init(&v);
-    EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, " { } "));
+    EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, " { }"));
     EXPECT_EQ_INT(LEPT_OBJECT, lept_get_type(&v));
     EXPECT_EQ_SIZE_T(0, lept_get_object_size(&v));
     lept_free(&v);
@@ -352,7 +352,7 @@ static void test_parse() {
     test_parse_number();
     test_parse_string();
     test_parse_array();
-#if 0
+#if 1
     test_parse_object();
 #endif
 
@@ -366,7 +366,7 @@ static void test_parse() {
     test_parse_invalid_unicode_hex();
     test_parse_invalid_unicode_surrogate();
     test_parse_miss_comma_or_square_bracket();
-#if 0
+#if 1
     test_parse_miss_key();
     test_parse_miss_colon();
     test_parse_miss_comma_or_curly_bracket();
