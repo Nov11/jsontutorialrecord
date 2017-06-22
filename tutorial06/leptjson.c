@@ -309,6 +309,7 @@ static int lept_parse_object(lept_context* c, lept_value* v) {
 		lept_parse_whitespace(c);
     }
     /* \todo Pop and free members on the stack */
+	free(m.k);
 	for (int i = 0; i < size; i++) {
 		lept_member* m = lept_context_pop(c, sizeof(lept_member));
 		lept_free(m);
