@@ -436,8 +436,9 @@ static void lept_stringify_string(lept_context* c, const char* s, size_t len) {
 		case '\t':PUTS(c, "\\t", 2); break;
 		default: {
 			char tmp = *s;
-			if (tmp == 0x0) {
-				sprintf(lept_context_push(c, 6), "\\u%04x", tmp);
+			if (tmp < 0x20) {
+				sprintf(lept_context_push(c, 7), "\\u%04x", tmp);
+				c->top--;
 			}
 			else {
 				*(char*)lept_context_push(c, 1) = tmp;
