@@ -1,4 +1,4 @@
-#ifdef _WINDOWS
+﻿#ifdef _WINDOWS
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif
@@ -345,9 +345,110 @@ int lept_parse(lept_value* v, const char* json) {
     free(c.stack);
     return ret;
 }
+static unsigned utf8ToCodePoint(const char** ptr) {
+	const char* cptr = *ptr;
+	unsigned r = 0;
+	if (*cptr & 0xf0) {
+		assert(cptr[0] != '\0' && cptr[1] != '\0' && cptr[2] != '\0' && cptr[3] != '\0');
+		r |= *cptr & 0x7;
+		r <<= 6;
+		cptr++;
+		r |= *cptr & 0x3f;
+		r <<= 6;
+		cptr++;
+		r |= *cptr & 0x3f;
+		r <<= 6;
+		cptr++;
+		r |= *cptr & 0x3f;
+		cptr++;
+	}
 
+	if (*cptr & 0xe0) {
+		assert(cptr[0] != '\0' && cptr[1] != '\0' && cptr[2] != '\0');
+		r |= cptr[0] & 0xf;
+		r <<= 6;
+		r |= cptr[1] & 0x3f;
+		r <<= 6;
+		r |= cptr[2] & 0x3f;
+		cptr += 3;
+	}
+
+	if (*cptr & 0xc0) {
+		assert(cptr[0] != '\0' && cptr[1] != '\0');
+		r |= cptr[0] & 0xf;
+		r <<= 6;
+		r |= cptr[1] & 0x3f;
+		cptr += 2;
+	}
+
+	if ((cptr[0] & 0x80) == 0) {
+		r = cptr[0] & 0x7f;
+		cptr++;
+	}
+	*ptr = cptr;
+
+	return r;
+}
 static void lept_stringify_string(lept_context* c, const char* s, size_t len) {
-    /* ... */
+    /* ... 
+	                    case '\"': PUTC(c, '\"'); break;
+						case '\\': PUTC(c, '\\'); break;
+						case '/':  PUTC(c, '/'); break;
+						case 'b':  PUTC(c, '\b'); break;
+						case 'f':  PUTC(c, '\f'); break;
+						case 'n':  PUTC(c, '\n'); break;
+						case 'r':  PUTC(c, '\r'); break;
+						case 't':  PUTC(c, '\t'); break;*/
+	const char * end = s + len;
+	PUTS(c, "\"", 1);
+	while (s != end) {
+		switch (*s) {
+		case '\"':PUTS(c, "\\\"", 2); break;
+		case '\\': {
+			PUTS(c, "\\\\", 2); 
+			if (*(s + 1) == 'u') {
+				s++;
+				//read next byte
+				unsigned u = utf8ToCodePoint(&s);
+				if (u >= 0x10000) {
+					//codepoint = 0x10000 + (H − 0xD800) × 0x400 + (L − 0xDC00)
+					u -= 0x10000u;
+					unsigned H = u / 0x400 + 0xd800;
+					unsigned L = u % 0x400 + 0xdc00;
+					char buff[7];
+					sprintf(buff, "u%04x", H);
+					PUTS(c, buff, 5);
+					sprintf(buff, "\\u%04x", L);
+					PUTS(c, buff, 7);
+				}
+				else {
+					char buff[7];
+					sprintf(buff, "u%0x", u);
+					PUTS(c, buff, 5);
+				}
+			}
+		}break;
+		case '/':PUTS(c, "/", 1); break;
+		case '\b':PUTS(c, "\\b", 2); break;
+		case '\f':PUTS(c, "\\f", 2); break;
+		case '\n':PUTS(c, "\\n", 2); break;
+		case '\r':PUTS(c, "\\r", 2); break;
+		case '\t':PUTS(c, "\\t", 2); break;
+		default: {
+			char tmp = *s;
+			if (tmp == 0x0) {
+				sprintf(lept_context_push(c, 6), "\\u%04x", tmp);
+			}
+			else {
+				*(char*)lept_context_push(c, 1) = tmp;
+			}
+		}
+			
+		}
+		s++;
+	}
+	PUTS(c, "\"", 1);
+
 }
 
 static void lept_stringify_value(lept_context* c, const lept_value* v) {
@@ -358,10 +459,37 @@ static void lept_stringify_value(lept_context* c, const lept_value* v) {
         case LEPT_NUMBER: c->top -= 32 - sprintf(lept_context_push(c, 32), "%.17g", v->u.n); break;
         case LEPT_STRING: lept_stringify_string(c, v->u.s.s, v->u.s.len); break;
         case LEPT_ARRAY:
-            /* ... */
+		{
+			PUTS(c, "[", 1);
+			int len = lept_get_array_size(v);
+			for (int i = 0; i < len; i++) {
+				lept_stringify_value(c, lept_get_array_element(v, i));
+				if (i + 1 != len) {
+					PUTS(c, ",", 1);
+				}
+			}
+			PUTS(c, "]", 1);
+		}
+
             break;
         case LEPT_OBJECT:
-            /* ... */
+		{
+			PUTS(c, "{", 1);
+			int len = lept_get_object_size(v);
+			for (int i = 0; i < len; i++) {
+				
+				//output key
+				lept_stringify_string(c, lept_get_object_key(v, i), lept_get_object_key_length(v, i));
+				PUTS(c, ":", 1);
+				lept_value* tmp = lept_get_object_value(v, i);
+				lept_stringify_value(c, tmp);
+				if (i + 1 != len) {
+					PUTS(c, ",", 1);
+				}
+			}
+			PUTS(c, "}", 1);
+		}
+
             break;
         default: assert(0 && "invalid type");
     }
