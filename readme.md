@@ -1,3 +1,6 @@
+这个repo 是打卡用的。明显不是我原创。
+教程连接是：https://github.com/miloyip/json-tutorial
+
 # 从零开始的 JSON 库教程
 
 * Milo Yip
